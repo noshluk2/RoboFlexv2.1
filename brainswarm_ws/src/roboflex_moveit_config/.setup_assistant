@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: roboflex_description
+    relative_path: urdf/roboflex_robotic_arm.urdf.xacro
+  srdf:
+    relative_path: config/roboflex_description.srdf
+  package_settings:
+    author_name: muneeb
+    author_email: contact@brainswarmrobotics.com
+    generated_timestamp: 1755680549
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity

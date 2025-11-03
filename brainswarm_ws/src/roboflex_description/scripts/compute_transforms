@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+import rclpy
+from rclpy.node import Node
+import numpy as np
+import tf2_ros
+from tf2_ros.buffer import Buffer
+from geometry_msgs.msg import TransformStamped
+from rclpy.duration import Duration
+
+class EEPose(Node):
+    def __init__(self):
+        super().__init__('compute_transforms')
+        self.tf_buffer = Buffer()
+        self.listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.translation_x_t1 = 0.0
+        self.translation_y_t1 = 0.0
+        self.translation_z_t1 = 0.0
+        self.timer = self.create_timer(0.1, self.timer_callback)
+
+    def timer_callback(self):
+        try:
+            transformation = self.tf_buffer.lookup_transform(
+                'base_link',
+                'gripper_left_link',
+                rclpy.time.Time(),
+                timeout=Duration(seconds=4.0)
+            )
+            self.get_logger().info("Rotation of Link_1 wrt base_link")
+
+            Q = [
+                transformation.transform.rotation.x,
+                transformation.transform.rotation.y,
+                transformation.transform.rotation.z,
+                transformation.transform.rotation.w
+            ]
+
+            print("Quaternion:", Q)
+
+            self.translation_x_t1 = transformation.transform.translation.x
+            self.translation_y_t1 = transformation.transform.translation.y
+            self.translation_z_t1 = transformation.transform.translation.z
+
+            rotation_matrix, tf_matrix = self.quaternion_rotation_matrix(Q)
+
+            print("\nRotation Matrix:")
+            print(rotation_matrix)
+            print("\nTransformation Matrix:")
+            print(tf_matrix)
+
+        except Exception as e:
+            self.get_logger().warn(f"Could not get transform: {e}")
+
+    def quaternion_rotation_matrix(self, Q):
+        q0, q1, q2, q3 = Q
+
+        r00 = 2 * (q0 * q0 + q1 * q1) - 1
+        r01 = 2 * (q1 * q2 - q0 * q3)
+        r02 = 2 * (q1 * q3 + q0 * q2)
+
+        r10 = 2 * (q1 * q2 + q0 * q3)
+        r11 = 2 * (q0 * q0 + q2 * q2) - 1
+        r12 = 2 * (q2 * q3 - q0 * q1)
+
+        r20 = 2 * (q1 * q3 - q0 * q2)
+        r21 = 2 * (q2 * q3 + q0 * q1)
+        r22 = 2 * (q0 * q0 + q3 * q3) - 1
+
+        rot_matrix = np.array([[r00, r01, r02],
+                               [r10, r11, r12],
+                               [r20, r21, r22]])
+
+        transformation_matrix = np.array([[r00, r01, r02, self.translation_x_t1],
+                                          [r10, r11, r12, self.translation_y_t1],
+                                          [r20, r21, r22, self.translation_z_t1],
+                                          [0, 0, 0, 1]])
+
+        return rot_matrix, transformation_matrix
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = EEPose()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+

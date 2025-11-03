@@ -1,0 +1,7 @@
+# Default initial positions for roboflex_description's ros2_control fake system
+
+initial_positions:
+  joint_1: 0.0
+  joint_2: 0.0
+  joint_3: 0.0
+  joint_gripper_body: 0.0
