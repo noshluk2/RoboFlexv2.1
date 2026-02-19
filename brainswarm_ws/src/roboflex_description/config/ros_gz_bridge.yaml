@@ -5,6 +5,13 @@
   gz_type_name: "ignition.msgs.Model" # In future, this will be gz.msgs.Model
   direction: GZ_TO_ROS
 
+# Bridge simulation time so controller_manager and MoveIt can use /clock
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
 # gz topic subscribed by the JointPositionController plugin
 #- ros_topic_name: "arx_v5/joint1/cmd_pos"
 #  gz_topic_name: "model/arx_v5/joint/joint1/0/cmd_pos"

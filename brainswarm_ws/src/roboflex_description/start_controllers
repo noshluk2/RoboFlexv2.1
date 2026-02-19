@@ -1,14 +1,37 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/config/real_robotic_arm_controllers.yaml"
+CONFIG_FILE="$SCRIPT_DIR/config/real_hardware_controllers.yaml"
+CONTROLLER_MANAGER="/controller_manager"
 
-ros2 param set /real_robot/controller_manager real_arm_controller.type joint_trajectory_controller/JointTrajectoryController
-ros2 run controller_manager spawner -c /real_robot/controller_manager -n real_robot -p  "$CONFIG_FILE" -t joint_trajectory_controller/JointTrajectoryController real_arm_controller
+wait_for_manager() {
+  until ros2 control list_controllers >/dev/null 2>&1; do
+    echo "Waiting for ${CONTROLLER_MANAGER}..."
+    sleep 1
+  done
+}
 
-ros2 param set /real_robot/controller_manager real_state_controller.type joint_state_broadcaster/JointStateBroadcaster
-ros2 run controller_manager spawner -c /real_robot/controller_manager -n real_robot -p  "$CONFIG_FILE" -t joint_state_broadcaster/JointStateBroadcaster real_state_controller
+is_loaded() {
+  local name="$1"
+  ros2 control list_controllers | awk '{print $1}' | grep -Fxq "${name}"
+}
 
-ros2 param set /real_robot/controller_manager real_gripper_controller.type joint_trajectory_controller/JointTrajectoryController
-ros2 run controller_manager spawner -c /real_robot/controller_manager -n real_robot -p  "$CONFIG_FILE" -t joint_trajectory_controller/JointTrajectoryController real_gripper_controller
+spawn_if_missing() {
+  local name="$1"
+  if is_loaded "${name}"; then
+    echo "${name} already present, skipping."
+    return 0
+  fi
+  echo "Spawning ${name}..."
+  ros2 run controller_manager spawner "${name}" \
+    -c "${CONTROLLER_MANAGER}" \
+    -p "${CONFIG_FILE}"
+}
+
+wait_for_manager
+spawn_if_missing joint_state_broadcaster
+spawn_if_missing arm_controller
+
+echo "Controllers are ready."

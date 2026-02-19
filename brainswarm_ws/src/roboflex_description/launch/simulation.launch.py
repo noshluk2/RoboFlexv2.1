@@ -2,17 +2,13 @@ import os
 import launch
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import ExecuteProcess
 from launch_ros.actions import Node
 from launch.actions import IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from launch.actions import DeclareLaunchArgument
-from launch_ros.parameter_descriptions import ParameterValue
 import xacro
-from launch.event_handlers import OnProcessExit
-from launch.actions import RegisterEventHandler
 
 
 def generate_launch_description():
@@ -48,8 +44,10 @@ def generate_launch_description():
     workspace_src_path = os.path.abspath(os.path.join(bras_robot_description_path, "../../../roboflex_description/share"))
 
 
-    os.environ["IGN_GAZEBO_RESOURCE_PATH"] = f"{models_path}:{workspace_src_path}"
-    print (os.environ["IGN_GAZEBO_RESOURCE_PATH"])
+    resource_paths = f"{models_path}:{workspace_src_path}"
+    os.environ["IGN_GAZEBO_RESOURCE_PATH"] = resource_paths
+    os.environ["GZ_SIM_RESOURCE_PATH"] = resource_paths
+    print(os.environ["GZ_SIM_RESOURCE_PATH"])
 
 
     world_file = os.path.join(
@@ -80,25 +78,33 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         name="camera_node",
-        arguments=['/camera@sensor_msgs/msg/Image@ignition.msgs.Image'],
+        arguments=['/camera@sensor_msgs/msg/Image@gz.msgs.Image'],
     )
+
+    try:
+        gazebo_pkg = 'ros_gz_sim'
+        gazebo_launch_file = 'gz_sim.launch.py'
+        gazebo_launch_args = {'gz_args': f' -r -v 4 {world_file} '}
+        get_package_share_directory(gazebo_pkg)
+    except PackageNotFoundError:
+        gazebo_pkg = 'ros_ign_gazebo'
+        gazebo_launch_file = 'ign_gazebo.launch.py'
+        gazebo_launch_args = {'ign_args': f' -r -v 4 {world_file} '}
 
     ign_gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('ros_ign_gazebo'),
+            get_package_share_directory(gazebo_pkg),
             'launch',
-            'ign_gazebo.launch.py'
+            gazebo_launch_file
         )]),
-        launch_arguments={
-                'ign_args': f' -r -v 4 {world_file} '
-        }.items()
+        launch_arguments=gazebo_launch_args.items()
     )
 
 
 
 
     start_gazebo_ros_spawner_cmd = Node(
-      package='ros_gz_sim',
+      package=gazebo_pkg,
       executable='create',
       arguments=[
         '-string', doc.toxml(),
@@ -183,4 +189,3 @@ def generate_launch_description():
         #control_node,
         node_robot_state_publisher
     ])
-

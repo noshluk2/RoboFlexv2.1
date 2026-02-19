@@ -1,0 +1,23 @@
+# Keep source only; ignore generated artifacts
+
+# ROS 2/colcon outputs
+brainswarm_ws/build/
+brainswarm_ws/install/
+brainswarm_ws/log/
+build/
+install/
+log/
+
+# PlatformIO and local IDE files
+Firmware/roboflex_pio/.pio/
+Firmware/roboflex_pio/.vscode/
+.vscode/
+.idea/
+
+# Python cache
+**/__pycache__/
+*.pyc
+
+# OS/editor noise
+*.swp
+.DS_Store

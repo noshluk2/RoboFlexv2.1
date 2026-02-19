@@ -78,7 +78,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Starting Micro-ROS ESP32 Node");
 
-    set_microros_wifi_transports("SMART University", "", "10.8.91.228", 8888);
+    set_microros_wifi_transports("Connect", "123456789", "10.8.91.228", 8888);
 
     Wire.begin(I2C_SDA, I2C_SCL);
     pwm.begin();

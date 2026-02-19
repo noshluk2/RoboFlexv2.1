@@ -1,7 +1,9 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command
 from launch.substitutions import LaunchConfiguration
 from launch.substitutions import PathJoinSubstitution
@@ -20,18 +22,14 @@ def generate_launch_description():
     )
     robot_description = {"robot_description": robot_description_content}
 
-    controller_manager_config = PathJoinSubstitution(
-        [
-            FindPackageShare("roboflex_description"),
-            "config",
-            "real_hardware_controllers.yaml",
-        ]
+    ros2_controllers = PathJoinSubstitution(
+        [FindPackageShare("roboflex_moveit_config"), "config", "ros2_controllers.yaml"]
     )
 
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[robot_description, controller_manager_config, {"use_sim_time": use_sim_time}],
+        parameters=[robot_description, ros2_controllers, {"use_sim_time": use_sim_time}],
         output="screen",
     )
 
@@ -56,18 +54,39 @@ def generate_launch_description():
     arm_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=[
-            "arm_controller",
-            "--controller-manager",
-            "/controller_manager",
-        ],
+        arguments=["arm_controller", "--controller-manager", "/controller_manager"],
         output="screen",
+    )
+
+    move_group_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("roboflex_moveit_config"), "launch", "move_group.launch.py"]
+            )
+        ),
+        launch_arguments={"use_sim_time": use_sim_time}.items(),
+    )
+
+    moveit_rviz_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [FindPackageShare("roboflex_moveit_config"), "launch", "moveit_rviz.launch.py"]
+            )
+        ),
+        launch_arguments={"use_sim_time": use_sim_time}.items(),
     )
 
     start_arm_controller_after_jsb = RegisterEventHandler(
         OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
             on_exit=[arm_controller_spawner],
+        )
+    )
+
+    start_moveit_after_arm_controller = RegisterEventHandler(
+        OnProcessExit(
+            target_action=arm_controller_spawner,
+            on_exit=[move_group_launch, moveit_rviz_launch],
         )
     )
 
@@ -83,11 +102,12 @@ def generate_launch_description():
                 default_value=PathJoinSubstitution(
                     [FindPackageShare("roboflex_description"), "urdf", "real_hardware.urdf.xacro"]
                 ),
-                description="Path to robot URDF/Xacro",
+                description="Path to robot URDF/Xacro for hardware control",
             ),
             control_node,
             robot_state_publisher,
             start_arm_controller_after_jsb,
+            start_moveit_after_arm_controller,
             joint_state_broadcaster_spawner,
         ]
     )
