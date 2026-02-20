@@ -3,7 +3,13 @@
 RoboFlex v2.1 is a ROS 2 robotic arm workspace for simulation and real hardware control with ESP32 + micro-ROS, ros2_control, and MoveIt 2.
 
 ![Alt text](/resources/robotflex.png)
+### To do
+- Hardwar Repeate bility tests
+- Moveit pose Fix to real robot
+- Adding Gripper  group for moveit
+- Test micro ros alternative
 ## Software Stack
+
 
 - Operating system: Ubuntu 24.04 LTS
 - ROS 2: Jazzy Jalisco
@@ -45,4 +51,10 @@ Real hardware (recommended one-command ROS stack):
 ```bash
 ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
 ros2 launch roboflex_moveit_config hardware_gui.launch.py
+```
+
+URDF joint slider debug in RViz (for checking ROS-side joint limits without hardware/controllers):
+
+```bash
+ros2 launch roboflex_moveit_config joint_state_debug.launch.py
 ```

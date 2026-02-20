@@ -7,6 +7,14 @@
 namespace dynamixel_hardware
 {
 
+namespace
+{
+// Startup ROS commands in radians. These map to the firmware's desired initial servo pose.
+// joint_1 -> 0 deg, joint_2 -> 0 deg, others stay at kinematic zero.
+constexpr double kInitialCommandRad[] = {0.0, -1.57, 0.0, 0.0, 0.0};
+constexpr size_t kInitialCommandCount = sizeof(kInitialCommandRad) / sizeof(kInitialCommandRad[0]);
+}  // namespace
+
 hardware_interface::CallbackReturn DynamixelHardware::on_init(const hardware_interface::HardwareInfo &info)
 {
     if (hardware_interface::SystemInterface::on_init(info) != hardware_interface::CallbackReturn::SUCCESS)
@@ -17,6 +25,12 @@ hardware_interface::CallbackReturn DynamixelHardware::on_init(const hardware_int
     num_joints_ = info.joints.size();
     position_commands_.resize(num_joints_, 0.0);
     position_states_.resize(num_joints_, 0.0);
+
+    for (size_t i = 0; i < num_joints_ && i < kInitialCommandCount; ++i)
+    {
+        position_commands_[i] = kInitialCommandRad[i];
+        position_states_[i] = kInitialCommandRad[i];
+    }
 
     // ROS2 Node initialization
     node_ = rclcpp::Node::make_shared("dynamixel_hardware");
@@ -116,4 +130,3 @@ void DynamixelHardware::send_command_to_motor(size_t joint_index, double positio
 } // namespace dynamixel_hardware
 
 PLUGINLIB_EXPORT_CLASS(dynamixel_hardware::DynamixelHardware, hardware_interface::SystemInterface)
-

@@ -14,6 +14,7 @@ MoveIt 2 configuration package for RoboFlex.
 - `config/moveit_controllers.yaml`: MoveIt controller mapping
 - `launch/move_group.launch.py`: starts MoveIt move_group
 - `launch/moveit_rviz.launch.py`: starts RViz with MoveIt configuration
+- `launch/joint_state_debug.launch.py`: starts RViz + joint sliders for URDF/joint-limit debugging (no controllers)
 
 ## Launch Commands
 
@@ -35,6 +36,12 @@ Hardware + MoveIt GUI in one launch (recommended for micro-ROS UDP robot):
 
 ```bash
 ros2 launch roboflex_moveit_config hardware_gui.launch.py
+```
+
+Joint-limit/URDF slider debug in RViz (no MoveIt execution and no hardware needed):
+
+```bash
+ros2 launch roboflex_moveit_config joint_state_debug.launch.py
 ```
 
 ## Hardware GUI Workflow

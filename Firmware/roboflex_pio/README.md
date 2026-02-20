@@ -35,6 +35,11 @@ pio run -t upload
 pio device monitor -b 115200
 ```
 
+## Local Docs
+
+- Hardware configuration and limits: [`hardware_info.md`](hardware_info.md)
+- Hardware testing guide: [`test/testing.md`](test/testing.md)
+
 ## Runtime Dependency
 
 Start micro-ROS agent on the ROS host before powering/using the robot:
@@ -48,3 +53,8 @@ ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
 - Real hardware bringup: [`../brainswarm_ws/src/roboflex_description/REAL_HARDWARE.md`](../brainswarm_ws/src/roboflex_description/REAL_HARDWARE.md)
 - MoveIt hardware GUI workflow: [`../brainswarm_ws/src/roboflex_moveit_config/README.md`](../brainswarm_ws/src/roboflex_moveit_config/README.md)
 - Project documentation map: [`../README.md`](../README.md)
+
+### Hardware Details
+- MG996R x 5 joints
+- MG90S x 1 gripper joint
+- ESp32
