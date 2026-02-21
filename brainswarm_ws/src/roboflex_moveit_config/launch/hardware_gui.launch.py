@@ -58,6 +58,13 @@ def generate_launch_description():
         output="screen",
     )
 
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+        output="screen",
+    )
+
     move_group_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -86,6 +93,13 @@ def generate_launch_description():
     start_moveit_after_arm_controller = RegisterEventHandler(
         OnProcessExit(
             target_action=arm_controller_spawner,
+            on_exit=[gripper_controller_spawner],
+        )
+    )
+
+    start_moveit_after_gripper_controller = RegisterEventHandler(
+        OnProcessExit(
+            target_action=gripper_controller_spawner,
             on_exit=[move_group_launch, moveit_rviz_launch],
         )
     )
@@ -108,6 +122,7 @@ def generate_launch_description():
             robot_state_publisher,
             start_arm_controller_after_jsb,
             start_moveit_after_arm_controller,
+            start_moveit_after_gripper_controller,
             joint_state_broadcaster_spawner,
         ]
     )
