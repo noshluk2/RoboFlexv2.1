@@ -9,9 +9,9 @@ namespace dynamixel_hardware
 
 namespace
 {
-// Startup ROS commands in radians. These map to the firmware's desired initial servo pose.
-// joint_1 -> 0 deg, joint_2 -> 0 deg, others stay at kinematic zero.
-constexpr double kInitialCommandRad[] = {0.0, -1.57, 0.0, 0.0, 0.0};
+// Startup ROS commands in radians. Keep them inside configured URDF limits so
+// MoveIt start-state validation passes before first command execution.
+constexpr double kInitialCommandRad[] = {0.0, -1.57, -0.174444, 0.0, 0.0};
 constexpr size_t kInitialCommandCount = sizeof(kInitialCommandRad) / sizeof(kInitialCommandRad[0]);
 }  // namespace
 

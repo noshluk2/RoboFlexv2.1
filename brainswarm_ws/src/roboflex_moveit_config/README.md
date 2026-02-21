@@ -75,6 +75,18 @@ ros2 launch roboflex_moveit_config hardware_gui.launch.py
 
 When executing, ros2_control publishes `std_msgs/Float64MultiArray` on `/motor_command`, matching the firmware subscriber.
 
+MoveIt groups configured for hardware:
+- `arm`: `joint_1..joint_4` (main manipulator planning group)
+- `gripper`: `joint_gripper` (single-joint gripper group)
+- `arm_with_gripper`: combined arm + gripper joint-space group
+
+Named group states:
+- `arm/home`
+- `gripper/open`
+- `gripper/closed`
+- `arm_with_gripper/home_open`
+- `arm_with_gripper/home_closed`
+
 Quick checks:
 
 ```bash

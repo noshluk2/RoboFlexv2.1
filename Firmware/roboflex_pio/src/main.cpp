@@ -69,7 +69,9 @@ rcl_node_t node;
 
 static constexpr size_t kJointCount = 5;
 static constexpr size_t kMinCommandJoints = 4;
-static constexpr uint8_t kPwmChannelMap[kJointCount] = {0, 1, 2, 3, 4};
+// Physical wiring on RoboFlex uses PCA9685 channels 1..5 for:
+// joint_1, joint_2, joint_3, joint_4, joint_gripper respectively.
+static constexpr uint8_t kPwmChannelMap[kJointCount] = {1, 2, 3, 4, 5};
 static constexpr float kStartupPoseDeg[kJointCount] = {
   0.0f,  // joint_1
   0.0f,  // joint_2
@@ -86,6 +88,8 @@ static constexpr float kJointZeroOffsetDeg[kJointCount] = {
 };
 static constexpr float kJointDefaultMinDeg[kJointCount] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 static constexpr float kJointDefaultMaxDeg[kJointCount] = {120.0f, 120.0f, 80.0f, 120.0f, 120.0f};
+// Reverse only joint_2 command direction to match physical motor orientation.
+static constexpr bool kJointInvertCommand[kJointCount] = {false, true, false, false, false};
 static constexpr uint32_t kJointLimitsPresetVersion = 2;
 static constexpr const char *kJointLimitsNamespace = "motor_limits";
 
@@ -251,7 +255,10 @@ void subscription_callback(const void *msgin) {
     if (i < in_msg->data.size) {
       rad = (float)in_msg->data.data[i];
     }
-    const float mapped_deg = radToServoDeg(rad, kJointZeroOffsetDeg[i]);
+    float mapped_deg = radToServoDeg(rad, kJointZeroOffsetDeg[i]);
+    if (kJointInvertCommand[i]) {
+      mapped_deg = (jointSafeMinDeg[i] + jointSafeMaxDeg[i]) - mapped_deg;
+    }
     targetAngleDeg[i] = clampToJointSoftLimits(i, mapped_deg);
   }
 
