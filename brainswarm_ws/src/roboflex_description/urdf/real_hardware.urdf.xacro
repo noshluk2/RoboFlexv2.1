@@ -97,7 +97,7 @@
     <axis
       xyz="0 0 1" />
     <limit
-      lower="-1.57"
+      lower="0.0"
       upper="1.57"
       effort="1000"
       velocity="1000" />
@@ -156,7 +156,7 @@
       xyz="0.087156 -0.99619 0" />
     <limit
       lower="-1.57"
-      upper="1.57"
+      upper="0.523333"
       effort="1000"
       velocity="1000" />
   </joint>
@@ -214,12 +214,12 @@
       xyz="0 1 0" />
     <limit
       lower="-1.57"
-      upper="1.57"
+      upper="-0.174444"
       effort="1000"
       velocity="1000" />
   </joint>
   <link
-    name="gripper_body_link">
+    name="link_4">
     <inertial>
       <origin
         xyz="0.0238071448579615 -0.0316783222787854 0.00277894821163538"
@@ -259,7 +259,7 @@
     </collision>
   </link>
   <joint
-    name="joint_gripper_body"
+    name="joint_4"
     type="revolute">
     <origin
       xyz="0.085374 0.001 0.055591"
@@ -267,20 +267,20 @@
     <parent
       link="link_3" />
     <child
-      link="gripper_body_link" />
+      link="link_4" />
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-1"
-      upper="1"
+      lower="-1.57"
+      upper="0.523333"
       effort="1000"
       velocity="1000" />
   </joint>
   <link
-    name="gripper_left_link">
+    name="left_finger_link">
     <inertial>
       <origin
-        xyz="0.0764884076472838 -0.0289481833034687 0.00870239087002106"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <mass
         value="0.00458928127195507" />
@@ -316,29 +316,64 @@
       </geometry>
     </collision>
   </link>
+  <link name="gripper_drive_link" />
+  <link name="gripper_actuator_link" />
   <joint
-    name="joint_gripper_left_part"
-    type="prismatic">
+    name="joint_gripper_mount"
+    type="fixed">
+    <origin
+      xyz="0.0718 -0.03 0.008"
+      rpy="0 0 0" />
+    <parent
+      link="link_4" />
+    <child
+      link="gripper_drive_link" />
+  </joint>
+  <joint
+    name="joint_gripper"
+    type="revolute">
     <origin
       xyz="0 0 0"
       rpy="0 0 0" />
     <parent
-      link="gripper_body_link" />
+      link="gripper_drive_link" />
     <child
-      link="gripper_left_link" />
+      link="gripper_actuator_link" />
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-0.4"
-      upper="0"
+      lower="0.0"
+      upper="0.523333"
       effort="1000"
       velocity="1000" />
   </joint>
+  <joint
+    name="joint_gripper_left_finger"
+    type="prismatic">
+    <origin
+      xyz="0 0.001 0"
+      rpy="0 -0.118 0" />
+    <parent
+      link="gripper_drive_link" />
+    <child
+      link="left_finger_link" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.006"
+      upper="0.0"
+      effort="1000"
+      velocity="1000" />
+    <mimic
+      joint="joint_gripper"
+      multiplier="0.011465"
+      offset="0.0" />
+  </joint>
   <link
-    name="gripper_right_link">
+    name="right_finger_link">
     <inertial>
       <origin
-        xyz="0.0764887069201697 -0.0464089888469002 0.00870242590433329"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <mass
         value="0.00458915923311391" />
@@ -378,19 +413,23 @@
     name="joint_gripper_right_part"
     type="prismatic">
     <origin
-      xyz="0 0 0"
-      rpy="0 0 0" />
+      xyz="0 -0.001 0"
+      rpy="0 -0.118 0" />
     <parent
-      link="gripper_body_link" />
+      link="gripper_drive_link" />
     <child
-      link="gripper_right_link" />
+      link="right_finger_link" />
     <axis
       xyz="0 1 0" />
     <limit
-      lower="0"
-      upper="0.4"
+      lower="0.0"
+      upper="0.006"
       effort="1000"
       velocity="1000" />
+    <mimic
+      joint="joint_gripper"
+      multiplier="-0.011465"
+      offset="0.0" />
   </joint>
 
 
@@ -401,7 +440,7 @@
 
         <joint name="joint_1">
             <command_interface name="position">
-                <param name="min">-1.57</param>
+                <param name="min">0.0</param>
                 <param name="max">1.57</param>
             </command_interface>
             <state_interface name="position">
@@ -412,8 +451,8 @@
 
         <joint name="joint_2">
             <command_interface name="position">
-                <param name="min">-2.879793</param>
-                <param name="max">2.879793</param>
+                <param name="min">-1.57</param>
+                <param name="max">0.523333</param>
             </command_interface>
             <state_interface name="position">
                 <param name="initial_value">0.0</param>
@@ -422,28 +461,28 @@
 
         <joint name="joint_3">
             <command_interface name="position">
-                <param name="min">-2.879793</param>
-                <param name="max">2.879793</param>
+                <param name="min">-1.57</param>
+                <param name="max">-0.174444</param>
             </command_interface>
             <state_interface name="position">
                 <param name="initial_value">0.0</param>
             </state_interface>
         </joint>
 
-        <joint name="joint_gripper_body">
+        <joint name="joint_4">
             <command_interface name="position">
-                <param name="min">-2.879793</param>
-                <param name="max">2.879793</param>
+                <param name="min">-1.57</param>
+                <param name="max">0.523333</param>
             </command_interface>
             <state_interface name="position">
                 <param name="initial_value">0.0</param>
             </state_interface>
         </joint>
 
-        <joint name="joint_gripper_left_part">
+        <joint name="joint_gripper">
             <command_interface name="position">
                 <param name="min">0</param>
-                <param name="max">1.57</param>
+                <param name="max">0.523333</param>
             </command_interface>
             <state_interface name="position">
                 <param name="initial_value">0.0</param>

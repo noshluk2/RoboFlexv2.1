@@ -3,6 +3,7 @@
 RoboFlex v2.1 is a ROS 2 robotic arm workspace for simulation and real hardware control with ESP32 + micro-ROS, ros2_control, and MoveIt 2.
 
 ![Alt text](/resources/robotflex.png)
+
 ### To do
 - Hardwar Repeate bility tests
 - Moveit pose Fix to real robot
