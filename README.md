@@ -1,61 +1,73 @@
-# RoboFlex v2.1
+# RoboFlex Educational Robotic Arm
 
-RoboFlex v2.1 is a ROS 2 robotic arm workspace for simulation and real hardware control with ESP32 + micro-ROS, ros2_control, and MoveIt 2.
+RoboFlex is 4-DOF robotic arm with simulation and real hardware control of ros2.
 
-![Alt text](/resources/robotflex.png)
+![RoboFlex](resources/robotflex.png)
 
-### To do
-- Hardwar Repeate bility tests
-- Moveit pose Fix to real robot
-- Adding Gripper  group for moveit
-- Test micro ros alternative
-## Software Stack
+## Stack
 
-
-- Operating system: Ubuntu 24.04 LTS
+- OS: Ubuntu 24.04 LTS
 - ROS 2: Jazzy Jalisco
-- Simulator: Gazebo Sim (Ignition/GZ)
 - Motion planning: MoveIt 2
-- Firmware transport: micro-ROS (UDP)
-- Languages: C++, Python
+- Simulation: Gazebo Sim (GZ)
+- Firmware transport: micro-ROS over UDP
 
-## Repository Structure
+## Workspace Architecture
+- [Description](roboflex_ros2/roboflex_description)
+    -  URDF/Xacro, meshes, worlds, models
+- [Control](roboflex_ros2/roboflex_control)
+    - Hardware interface plugin + ros2_control configs/launches
+- [Bringup](roboflex_ros2/roboflex_bringup)
+    - Simulation and real-hardware top-level launches
+    -  RViz debug, micro-ROS agent
+- [MoveIt](roboflex_ros2/roboflex_moveit)
+    - MoveIt config and MoveIt-specific launches
 
-| Area | Path | Purpose |
-| --- | --- | --- |
-| Robot description and bringup | [`brainswarm_ws/src/roboflex_description`](brainswarm_ws/src/roboflex_description) | Launch files for simulation and real hardware |
-| MoveIt configuration | [`brainswarm_ws/src/roboflex_moveit_config`](brainswarm_ws/src/roboflex_moveit_config) | Planning pipelines, kinematics, controller config |
-| Simulation world/assets | [`brainswarm_ws/src/bras_robot_description`](brainswarm_ws/src/bras_robot_description) | World, models, and assets used by simulation |
-| Firmware | [`Firmware`](Firmware) | ESP32 micro-ROS firmware |
-
-## Workspace Build
+## Build Workspace
 
 ```bash
 source /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash
-cd brainswarm_ws
+cd ~/repos/RoboFlexv2.1
 colcon build
 source install/setup.bash
 ```
 
-## Recommended Startup Commands
+## Optional micro-ROS Packages
+This repo intentionally does not include micro-ROS packages or git submodules.
 
-Simulation:
+- If you want local micro-ROS packages, clone them into your own workspace `src/`.
+
+Example:
 
 ```bash
-ros2 launch roboflex_description simulation.launch.py
-ros2 launch roboflex_moveit_config move_group.launch.py
-ros2 launch roboflex_moveit_config moveit_rviz.launch.py
+cd ~/repos/RoboFlexv2.1/src
+mkdir -p uros
+git clone https://github.com/micro-ROS/micro-ROS-Agent.git uros/micro-ROS-Agent
+git clone https://github.com/micro-ROS/micro_ros_msgs.git uros/micro_ros_msgs
 ```
 
-Real hardware (recommended one-command ROS stack):
+## Canonical Launches
+
+Simulation + MoveIt:
 
 ```bash
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
-ros2 launch roboflex_moveit_config hardware_gui.launch.py
+ros2 launch roboflex_bringup simulation.launch.py
 ```
 
-URDF joint slider debug in RViz (for checking ROS-side joint limits without hardware/controllers):
+Real hardware + MoveIt (recommended):
 
 ```bash
-ros2 launch roboflex_moveit_config joint_state_debug.launch.py
+ros2 launch roboflex_bringup hardware_gui.launch.py
+```
+
+Real hardware control-only (no MoveIt):
+
+```bash
+ros2 launch roboflex_bringup hardware_gui.launch.py with_moveit:=false
+```
+
+URDF/joint-limit debug (no hardware required):
+
+```bash
+ros2 launch roboflex_bringup sensors_rviz.launch.py
 ```
