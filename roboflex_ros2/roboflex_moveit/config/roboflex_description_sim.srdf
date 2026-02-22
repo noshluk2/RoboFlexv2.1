@@ -44,7 +44,7 @@
 
     <group_state name="Arm Strech" group="arm">
         <joint name="joint_1" value="0.0"/>
-        <joint name="joint_2" value="1.5707963"/>
+        <joint name="joint_2" value="0.523333"/>
         <joint name="joint_3" value="-0.1745329"/>
         <joint name="joint_gripper_body" value="0.0"/>
     </group_state>

@@ -51,7 +51,7 @@
 
     <group_state name="Arm Strech" group="arm">
             <joint name="joint_1" value="0.0"/>          <!-- 0 deg -->
-            <joint name="joint_2" value="1.5707963"/>    <!-- 90 deg -->
+            <joint name="joint_2" value="0.523333"/>     <!-- 30 deg (URDF max) -->
             <joint name="joint_3" value="-0.1745329"/>   <!-- -10 deg -->
             <joint name="joint_4" value="0.0"/>          <!-- 0 deg -->
     </group_state>

@@ -311,7 +311,7 @@
 
   <ros2_control name="RealHardwareSystem" type="system">
         <hardware>
-          <plugin>roboflex_control/DynamixelHardware</plugin>
+          <plugin>roboflex_control/RoboflexUdpHardware</plugin>
         </hardware>
 
         <joint name="joint_1">

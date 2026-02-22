@@ -13,9 +13,31 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     robot_description_file = LaunchConfiguration("robot_description_file")
+    firmware_ip = LaunchConfiguration("firmware_ip")
+    firmware_port = LaunchConfiguration("firmware_port")
+    udp_keepalive_ms = LaunchConfiguration("udp_keepalive_ms")
+    udp_command_change_epsilon_rad = LaunchConfiguration("udp_command_change_epsilon_rad")
 
     robot_description_content = ParameterValue(
-        Command(["xacro", " ", robot_description_file]),
+        Command(
+            [
+                "xacro",
+                " ",
+                robot_description_file,
+                " ",
+                "udp_target_ip:=",
+                firmware_ip,
+                " ",
+                "udp_target_port:=",
+                firmware_port,
+                " ",
+                "udp_keepalive_ms:=",
+                udp_keepalive_ms,
+                " ",
+                "udp_command_change_epsilon_rad:=",
+                udp_command_change_epsilon_rad,
+            ]
+        ),
         value_type=str,
     )
     robot_description = {"robot_description": robot_description_content}
@@ -102,6 +124,26 @@ def generate_launch_description():
                     [FindPackageShare("roboflex_description"), "urdf", "real_hardware.urdf.xacro"]
                 ),
                 description="Path to robot URDF/Xacro",
+            ),
+            DeclareLaunchArgument(
+                "firmware_ip",
+                default_value="255.255.255.255",
+                description="ESP32 firmware UDP target IP for motor commands",
+            ),
+            DeclareLaunchArgument(
+                "firmware_port",
+                default_value="9999",
+                description="ESP32 firmware UDP listening port for motor commands",
+            ),
+            DeclareLaunchArgument(
+                "udp_keepalive_ms",
+                default_value="200",
+                description="Send unchanged UDP command keepalive interval in milliseconds",
+            ),
+            DeclareLaunchArgument(
+                "udp_command_change_epsilon_rad",
+                default_value="0.0001",
+                description="Minimum radian command delta that triggers UDP send",
             ),
             control_node,
             robot_state_publisher,

@@ -1,9 +1,9 @@
 <library path="roboflex_control">
-  <class name="roboflex_control/DynamixelHardware"
-         type="dynamixel_hardware::DynamixelHardware"
+  <class name="roboflex_control/RoboflexUdpHardware"
+         type="roboflex_udp_hardware::RoboflexUdpHardware"
          base_class_type="hardware_interface::SystemInterface">
     <description>
-      The ROBOTIS Dynamixel system interface.
+      RoboFlex UDP hardware system interface.
     </description>
   </class>
 </library>

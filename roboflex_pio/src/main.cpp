@@ -1,15 +1,9 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <Preferences.h>
-
-#include <micro_ros_platformio.h>
-#include <rcl/rcl.h>
-#include <rcl/error_handling.h>
-#include <rclc/rclc.h>
-#include <rclc/executor.h>
-#include <std_msgs/msg/float64_multi_array.h>
 
 #define I2C_SDA 21
 #define I2C_SCL 22
@@ -19,13 +13,11 @@
 #define SERVO_FREQ 50
 
 #define LED_PIN 2
-#define COMMAND_TOPIC "/motor_command"
 
 // Network config can be overridden from platformio.ini via build_flags:
 // -D ROBOFLEX_WIFI_SSID=\"MySSID\"
 // -D ROBOFLEX_WIFI_PASSWORD=\"MyPassword\"
-// -D ROBOFLEX_AGENT_IP=\"192.168.1.10\"
-// -D ROBOFLEX_AGENT_PORT=8888
+// -D ROBOFLEX_UDP_LISTEN_PORT=9999
 #ifndef ROBOFLEX_WIFI_SSID
 #define ROBOFLEX_WIFI_SSID "Connect"
 #endif
@@ -34,41 +26,22 @@
 #define ROBOFLEX_WIFI_PASSWORD "123456789"
 #endif
 
-#ifndef ROBOFLEX_AGENT_IP
-#define ROBOFLEX_AGENT_IP "10.54.47.220"
+#ifndef ROBOFLEX_UDP_LISTEN_PORT
+#define ROBOFLEX_UDP_LISTEN_PORT 9999
 #endif
 
-#ifndef ROBOFLEX_AGENT_PORT
-#define ROBOFLEX_AGENT_PORT 8888
+#ifndef ROBOFLEX_PCA9685_ADDR
+#define ROBOFLEX_PCA9685_ADDR 0x40
 #endif
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(ROBOFLEX_PCA9685_ADDR);
 Preferences preferences;
-
-rcl_subscription_t subscriber;
-std_msgs__msg__Float64MultiArray msg;
-rclc_executor_t executor;
-rclc_support_t support;
-rcl_allocator_t allocator;
-rcl_node_t node;
-
-#define RCCHECK(fn)                                 \
-  {                                                 \
-    rcl_ret_t temp_rc = fn;                         \
-    if ((temp_rc != RCL_RET_OK)) {                  \
-      error_loop();                                 \
-    }                                               \
-  }
-
-#define RCSOFTCHECK(fn)                             \
-  {                                                 \
-    rcl_ret_t temp_rc = fn;                         \
-    if ((temp_rc != RCL_RET_OK)) {                  \
-    }                                               \
-  }
+WiFiUDP command_udp;
 
 static constexpr size_t kJointCount = 5;
 static constexpr size_t kMinCommandJoints = 4;
+static constexpr size_t kUdpMaxPacketSize = 192;
+static constexpr unsigned long kWifiConnectTimeoutMs = 20000;
 // Physical wiring on RoboFlex uses PCA9685 channels 1..5 for:
 // joint_1, joint_2, joint_3, joint_4, joint_gripper respectively.
 static constexpr uint8_t kPwmChannelMap[kJointCount] = {1, 2, 3, 4, 5};
@@ -76,8 +49,8 @@ static constexpr float kStartupPoseDeg[kJointCount] = {
   0.0f,  // joint_1
   0.0f,  // joint_2
   90.0f, // joint_3
-  90.0f, // joint_gripper_body
-  90.0f  // joint_gripper_left_part
+  90.0f, // joint_4
+  90.0f  // joint_gripper
 };
 static constexpr float kJointZeroOffsetDeg[kJointCount] = {
   -90.0f,  // base joint offset compensation
@@ -111,7 +84,7 @@ float currentAngleDeg[kJointCount] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 float targetAngleDeg[kJointCount] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 float jointSafeMinDeg[kJointCount] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 float jointSafeMaxDeg[kJointCount] = {180.0f, 180.0f, 180.0f, 180.0f, 180.0f};
-double msg_buffer[kJointCount];
+char udpPacketBuffer[kUdpMaxPacketSize + 1];
 
 float clampRad(float rad_value) {
   if (rad_value > 1.57f) return 1.57f;
@@ -232,29 +205,95 @@ void error_loop() {
   }
 }
 
-void subscription_callback(const void *msgin) {
-  const std_msgs__msg__Float64MultiArray *in_msg =
-      (const std_msgs__msg__Float64MultiArray *)msgin;
+bool probePca9685(uint8_t address, uint8_t retries) {
+  for (uint8_t attempt = 1; attempt <= retries; ++attempt) {
+    Wire.beginTransmission(address);
+    const uint8_t err = Wire.endTransmission();
+    if (err == 0) {
+      return true;
+    }
 
-  if (in_msg->data.size < kMinCommandJoints) {
-    Serial.print("[WARN] /motor_command size too small: ");
-    Serial.println((int)in_msg->data.size);
+    Serial.print("[WARN] PCA9685 probe failed addr=0x");
+    Serial.print(address, HEX);
+    Serial.print(" code=");
+    Serial.print((int)err);
+    Serial.print(" attempt=");
+    Serial.print((int)attempt);
+    Serial.print("/");
+    Serial.println((int)retries);
+    delay(120);
+  }
+  return false;
+}
+
+bool connectToWifi(const char *ssid, const char *password) {
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.begin(ssid, password);
+
+  Serial.print("Connecting WiFi");
+  const unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && (millis() - start) < kWifiConnectTimeoutMs) {
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  return WiFi.status() == WL_CONNECTED;
+}
+
+bool parseUdpCommandPacket(char *packet, size_t bytes_read, float *commands_rad, size_t &command_count) {
+  if (bytes_read == 0) {
+    return false;
+  }
+
+  packet[bytes_read] = '\0';
+  for (size_t i = 0; i < bytes_read; ++i) {
+    if (packet[i] == ',' || packet[i] == ';') {
+      packet[i] = ' ';
+    }
+  }
+
+  char *save_ptr = nullptr;
+  char *token = strtok_r(packet, " \t\r\n", &save_ptr);
+  if (token == nullptr) {
+    return false;
+  }
+
+  if (strcmp(token, "CMD") == 0 || strcmp(token, "cmd") == 0 ||
+      strcmp(token, "MOTOR") == 0 || strcmp(token, "motor") == 0) {
+    token = strtok_r(nullptr, " \t\r\n", &save_ptr);
+  }
+
+  command_count = 0;
+  while (token != nullptr && command_count < kJointCount) {
+    commands_rad[command_count] = strtof(token, nullptr);
+    ++command_count;
+    token = strtok_r(nullptr, " \t\r\n", &save_ptr);
+  }
+
+  return command_count >= kMinCommandJoints;
+}
+
+void applyCommandRadians(const float *commands_rad, size_t command_count) {
+  if (command_count < kMinCommandJoints) {
     return;
   }
 
-  if (in_msg->data.size != kJointCount && millis() - lastSizeWarnMs > 2000) {
+  if (command_count != kJointCount && millis() - lastSizeWarnMs > 2000) {
     lastSizeWarnMs = millis();
-    Serial.print("[WARN] /motor_command size=");
-    Serial.print((int)in_msg->data.size);
+    Serial.print("[WARN] UDP command count=");
+    Serial.print((int)command_count);
     Serial.print(" expected=");
     Serial.println((int)kJointCount);
   }
 
   for (size_t i = 0; i < kJointCount; ++i) {
     float rad = 0.0f;
-    if (i < in_msg->data.size) {
-      rad = (float)in_msg->data.data[i];
+    if (i < command_count) {
+      rad = commands_rad[i];
     }
+
     float mapped_deg = radToServoDeg(rad, kJointZeroOffsetDeg[i]);
     if (kJointInvertCommand[i]) {
       mapped_deg = (jointSafeMinDeg[i] + jointSafeMaxDeg[i]) - mapped_deg;
@@ -268,39 +307,60 @@ void subscription_callback(const void *msgin) {
   digitalWrite(LED_PIN, !digitalRead(LED_PIN));
 }
 
+void pollUdpCommands() {
+  int packet_size = command_udp.parsePacket();
+  while (packet_size > 0) {
+    const int bytes_read = command_udp.read(udpPacketBuffer, kUdpMaxPacketSize);
+    if (bytes_read > 0) {
+      float commands_rad[kJointCount] = {0.0f};
+      size_t command_count = 0;
+      if (parseUdpCommandPacket(udpPacketBuffer, (size_t)bytes_read, commands_rad, command_count)) {
+        applyCommandRadians(commands_rad, command_count);
+      } else if (millis() - lastSizeWarnMs > 2000) {
+        lastSizeWarnMs = millis();
+        Serial.print("[WARN] Invalid UDP command packet: '");
+        Serial.print(udpPacketBuffer);
+        Serial.println("'");
+      }
+    }
+
+    packet_size = command_udp.parsePacket();
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
-  Serial.println("Starting Micro-ROS ESP32 Node");
+  Serial.println("Starting RoboFlex UDP firmware node");
 
   static char wifi_ssid[] = ROBOFLEX_WIFI_SSID;
   static char wifi_password[] = ROBOFLEX_WIFI_PASSWORD;
 
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-
-  IPAddress agent_ip;
-  if (!agent_ip.fromString(ROBOFLEX_AGENT_IP)) {
-    Serial.print("[ERROR] Invalid ROBOFLEX_AGENT_IP: ");
-    Serial.println(ROBOFLEX_AGENT_IP);
+  if (!connectToWifi(wifi_ssid, wifi_password)) {
+    Serial.println("[ERROR] WiFi connection failed");
     error_loop();
   }
 
-  set_microros_wifi_transports(
-      wifi_ssid,
-      wifi_password,
-      agent_ip,
-      ROBOFLEX_AGENT_PORT);
+  Serial.print("WiFi connected. Local IP: ");
+  Serial.println(WiFi.localIP());
 
-  Serial.print("micro-ROS WiFi SSID: ");
-  Serial.println(wifi_ssid);
-  Serial.print("micro-ROS agent: ");
-  Serial.print(agent_ip);
-  Serial.print(":");
-  Serial.println((int)ROBOFLEX_AGENT_PORT);
+  if (!command_udp.begin(ROBOFLEX_UDP_LISTEN_PORT)) {
+    Serial.println("[ERROR] Failed to start UDP listener");
+    error_loop();
+  }
+
+  Serial.print("Listening for UDP motor commands on port ");
+  Serial.println((int)ROBOFLEX_UDP_LISTEN_PORT);
 
   Wire.begin(I2C_SDA, I2C_SCL);
+
+  if (!probePca9685(ROBOFLEX_PCA9685_ADDR, 15)) {
+    Serial.println("[ERROR] PCA9685 not detected on I2C bus.");
+    Serial.println("[ERROR] Check SDA/SCL wiring, 5V power, GND common, OE pin, and address jumpers.");
+    error_loop();
+  }
+
   pwm.begin();
   pwm.setPWMFreq(SERVO_FREQ);
 
@@ -309,32 +369,6 @@ void setup() {
   if (!loaded_from_nvs) {
     Serial.println("[INFO] Running with compiled default joint soft limits");
   }
-
-  allocator = rcl_get_default_allocator();
-  RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
-  RCCHECK(rclc_node_init_default(&node, "hardware_driver_node", "", &support));
-
-  rmw_qos_profile_t qos_profile = rmw_qos_profile_default;
-  qos_profile.depth = 1;
-  qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
-
-  RCCHECK(rclc_subscription_init(
-      &subscriber,
-      &node,
-      ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float64MultiArray),
-      COMMAND_TOPIC,
-      &qos_profile));
-  Serial.print("Subscribed to: ");
-  Serial.println(COMMAND_TOPIC);
-
-  std_msgs__msg__Float64MultiArray__init(&msg);
-  msg.data.data = msg_buffer;
-  msg.data.size = kJointCount;
-  msg.data.capacity = kJointCount;
-
-  RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
-  RCCHECK(rclc_executor_add_subscription(
-      &executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
 
   // Startup pose in servo degrees (clamped by per-joint safety limits).
   for (size_t i = 0; i < kJointCount; ++i) {
@@ -347,6 +381,8 @@ void setup() {
 
 void loop() {
   unsigned long now = millis();
+
+  pollUdpCommands();
 
   if (now - lastUpdateTime >= updateIntervalMs) {
     lastUpdateTime = now;
@@ -380,6 +416,8 @@ void loop() {
     Serial.print((unsigned long)receivedCommandCount);
     Serial.print(" last_rx_ms_ago=");
     Serial.print((unsigned long)(now - lastCommandMs));
+    Serial.print(" wifi=");
+    Serial.print((WiFi.status() == WL_CONNECTED) ? "connected" : "disconnected");
     Serial.print(" speed_mode=");
     Serial.print(startupSlowModeActive ? "startup_slow" : "normal");
     Serial.print(" target_deg=[");
@@ -388,8 +426,12 @@ void loop() {
       if (i + 1 < kJointCount) Serial.print(", ");
     }
     Serial.println("]");
-  }
 
-  // Keep executor responsive without stalling servo update loop.
-  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(2)));
+    Serial.print("[STATUS] current_deg=[");
+    for (size_t i = 0; i < kJointCount; ++i) {
+      Serial.print(currentAngleDeg[i], 1);
+      if (i + 1 < kJointCount) Serial.print(", ");
+    }
+    Serial.println("]");
+  }
 }

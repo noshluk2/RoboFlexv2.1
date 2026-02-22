@@ -5,20 +5,20 @@ This file documents the active hardware-side joint limits and their ROS/radian e
 ## Source Of Truth
 
 Current compiled defaults are defined in:
-- `Firmware/roboflex_pio/src/main.cpp`
+- `roboflex_pio/src/main.cpp`
   - `kJointDefaultMinDeg = {0, 0, 0, 0, 0}`
   - `kJointDefaultMaxDeg = {120, 120, 80, 120, 120}`
   - `kJointZeroOffsetDeg = {-90, 0, 0, 0, 0}`
   - `radToServoDeg()` maps ROS radians `[-1.57, 1.57] -> [0, 180]` servo degrees
-- `Firmware/roboflex_pio/test/testing.md` repeats the same safety defaults.
+- `roboflex_pio/test/testing.md` repeats the same safety defaults.
 
 Important:
 - At runtime, saved NVS limits can override these defaults.
 - Use `status` in dev firmware to see currently active min/max before final tuning.
 
-## ROS Joint Order Used By Firmware
+## UDP Joint Order Used By Firmware
 
-`/motor_command` index mapping in `main.cpp`:
+`CMD` UDP payload index mapping in `main.cpp`:
 1. `joint_1`
 2. `joint_2`
 3. `joint_3`

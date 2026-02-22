@@ -3,7 +3,12 @@
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
+  xmlns:xacro="http://www.ros.org/wiki/xacro"
   name="roboflex_description">
+  <xacro:arg name="udp_target_ip" default="255.255.255.255" />
+  <xacro:arg name="udp_target_port" default="9999" />
+  <xacro:arg name="udp_keepalive_ms" default="200" />
+  <xacro:arg name="udp_command_change_epsilon_rad" default="0.0001" />
   <link
     name="base_link">
     <inertial>
@@ -435,7 +440,11 @@
 
   <ros2_control name="RealHardwareSystem" type="system">
         <hardware>
-          <plugin>roboflex_control/DynamixelHardware</plugin>
+          <plugin>roboflex_control/RoboflexUdpHardware</plugin>
+          <param name="udp_target_ip">$(arg udp_target_ip)</param>
+          <param name="udp_target_port">$(arg udp_target_port)</param>
+          <param name="udp_keepalive_ms">$(arg udp_keepalive_ms)</param>
+          <param name="udp_command_change_epsilon_rad">$(arg udp_command_change_epsilon_rad)</param>
         </hardware>
 
         <joint name="joint_1">

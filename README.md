@@ -1,6 +1,6 @@
 # RoboFlex Educational Robotic Arm
 
-RoboFlex is 4-DOF robotic arm with simulation and real hardware control of ros2.
+RoboFlex is a 4-DOF robotic arm with simulation and real hardware control on ROS 2.
 
 ![RoboFlex](resources/robotflex.png)
 
@@ -10,43 +10,61 @@ RoboFlex is 4-DOF robotic arm with simulation and real hardware control of ros2.
 - ROS 2: Jazzy Jalisco
 - Motion planning: MoveIt 2
 - Simulation: Gazebo Sim (GZ)
-- Firmware transport: micro-ROS over UDP
+- Hardware transport: plain UDP (one-way motor command stream)
 
 ## Workspace Architecture
+
 - [Description](roboflex_ros2/roboflex_description)
-    -  URDF/Xacro, meshes, worlds, models
+  - URDF/Xacro, meshes, worlds, models
 - [Control](roboflex_ros2/roboflex_control)
-    - Hardware interface plugin + ros2_control configs/launches
+  - ros2_control hardware plugin + controller configs/launches
 - [Bringup](roboflex_ros2/roboflex_bringup)
-    - Simulation and real-hardware top-level launches
-    -  RViz debug, micro-ROS agent
+  - Simulation and real-hardware top-level launches
 - [MoveIt](roboflex_ros2/roboflex_moveit)
-    - MoveIt config and MoveIt-specific launches
+  - MoveIt config and MoveIt-specific launches
+- [Firmware](roboflex_pio)
+  - ESP32 PlatformIO firmware (UDP listener)
 
 ## Build Workspace
-
+- Make sure usb prot communicatino is allowed
+- Pre Reqs
+```bash
+sudo apt update
+sudo apt install -y \
+  git build-essential cmake \
+  python3 python3-pip python3-venv python3-dev python3-setuptools python3-wheel \
+  pipx \
+  mesa-utils libgl1-mesa-dri libegl1
+pipx ensurepath
+pipx install platformio
+```
 ```bash
 source /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash
-cd ~/repos/RoboFlexv2.1
-colcon build
+cd ~/ros2_ws
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --packages-select roboflex_description roboflex_control roboflex_moveit roboflex_bringup
 source install/setup.bash
 ```
 
-## Optional micro-ROS Packages
-This repo intentionally does not include micro-ROS packages or git submodules.
+## Firmware (ESP32)
 
-- If you want local micro-ROS packages, clone them into your own workspace `src/`.
-
-Example:
+Configure and flash from [`roboflex_pio`](roboflex_pio):
 
 ```bash
-cd ~/repos/RoboFlexv2.1/src
-mkdir -p uros
-git clone https://github.com/micro-ROS/micro-ROS-Agent.git uros/micro-ROS-Agent
-git clone https://github.com/micro-ROS/micro_ros_msgs.git uros/micro_ros_msgs
+cd ~/ros2_ws/src/RoboFlexv2.1/roboflex_pio
+pio run -e prod
+pio run -e prod -t upload
+pio device monitor -b 115200
 ```
 
+
 ## Canonical Launches
+URDF/joint-limit debug (no hardware required):
+
+```bash
+ros2 launch roboflex_bringup sensors_rviz.launch.py
+```
+
 
 Simulation + MoveIt:
 
@@ -54,20 +72,15 @@ Simulation + MoveIt:
 ros2 launch roboflex_bringup simulation.launch.py
 ```
 
-Real hardware + MoveIt (recommended):
-
-```bash
-ros2 launch roboflex_bringup hardware_gui.launch.py
-```
-
-Real hardware control-only (no MoveIt):
+Real hardware control-only
 
 ```bash
 ros2 launch roboflex_bringup hardware_gui.launch.py with_moveit:=false
 ```
 
-URDF/joint-limit debug (no hardware required):
+
+## Real hardware + MoveIt:
 
 ```bash
-ros2 launch roboflex_bringup sensors_rviz.launch.py
+ros2 launch roboflex_bringup hardware_gui.launch.py firmware_ip:=10.54.47.26 firmware_port:=9999
 ```

@@ -1,61 +1,58 @@
 # Firmware
 
-ESP32 micro-ROS firmware for RoboFlex real hardware control.
+ESP32 firmware for RoboFlex real hardware control over plain UDP (no micro-ROS).
 
-## Use This README When
-
-- You need to build/upload firmware to the ESP32.
-- You need to change Wi-Fi SSID/password or micro-ROS agent IP/port.
-
-## Active Firmware Project
+## Active Project
 
 - PlatformIO project: [`.`](.)
 - Main source: [`src/main.cpp`](src/main.cpp)
 - PlatformIO config: [`platformio.ini`](platformio.ini)
-- Legacy Arduino backups: [`test`](test)
+- Dev/safety sketch: [`src/main_dev.cpp`](src/main_dev.cpp)
+
+## Runtime Protocol
+
+- Transport: UDP (one-way, ROS2 host -> ESP32)
+- Listening port: `ROBOFLEX_UDP_LISTEN_PORT` (default `9999`)
+- Payload format: `CMD <joint_1> <joint_2> <joint_3> <joint_4> <joint_gripper>`
+- Units: radians
+
+Example payload:
+
+```text
+CMD 0.000000 -1.570000 -0.174444 0.000000 0.100000
+```
 
 ## Required Configuration
 
-Set network and agent endpoint in [`platformio.ini`](platformio.ini):
+Set network and UDP port in [`platformio.ini`](platformio.ini):
 
 ```ini
 build_flags =
   -D ROBOFLEX_WIFI_SSID=\"<ssid>\"
   -D ROBOFLEX_WIFI_PASSWORD=\"<password>\"
-  -D ROBOFLEX_AGENT_IP=\"<agent_ip>\"
-  -D ROBOFLEX_AGENT_PORT=8888
+  -D ROBOFLEX_UDP_LISTEN_PORT=9999
+  -D ROBOFLEX_PCA9685_ADDR=0x40
 ```
 
 ## Build and Upload
 
 ```bash
-cd Firmware/roboflex_pio
-pio run
-pio run -t upload
+cd ~/ros2_ws/src/RoboFlexv2.1/roboflex_pio
+pio run -e prod
+pio run -e prod -t upload
 pio device monitor -b 115200
 ```
 
-## Local Docs
+## Serial Health Checks
 
-- Hardware configuration and limits: [`hardware_info.md`](hardware_info.md)
-- Hardware testing guide: [`test/testing.md`](test/testing.md)
+On boot you should see:
 
-## Runtime Dependency
-
-Start micro-ROS agent on the ROS host before powering/using the robot:
-
-```bash
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
-```
+- `WiFi connected. Local IP: ...`
+- `Listening for UDP motor commands on port ...`
+- no `[ERROR] PCA9685 not detected on I2C bus.`
+- periodic `[STATUS]` lines with increasing `rx_count` when ROS2 is commanding
 
 ## Related Guides
 
-- Real hardware bringup: [`../../src/roboflex_bringup/REAL_HARDWARE.md`](../../src/roboflex_bringup/REAL_HARDWARE.md)
-- Hardware joint-test launch: [`../../src/roboflex_control/launch/hardware_joint_position_test.launch.py`](../../src/roboflex_control/launch/hardware_joint_position_test.launch.py)
-- MoveIt hardware GUI workflow: [`../../src/roboflex_moveit/README.md`](../../src/roboflex_moveit/README.md)
-- Project documentation map: [`../../README.md`](../../README.md)
-
-### Hardware Details
-- MG996R x 5 joints
-- MG90S x 1 gripper joint
-- ESp32
+- Top-level setup: [`../README.md`](../README.md)
+- Real hardware bringup: [`../roboflex_ros2/roboflex_bringup/REAL_HARDWARE.md`](../roboflex_ros2/roboflex_bringup/REAL_HARDWARE.md)
