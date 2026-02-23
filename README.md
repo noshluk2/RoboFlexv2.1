@@ -22,6 +22,8 @@ RoboFlex is a 4-DOF robotic arm with simulation and real hardware control on ROS
   - Simulation and real-hardware top-level launches
 - [MoveIt](roboflex_ros2/roboflex_moveit)
   - MoveIt config and MoveIt-specific launches
+- [Pick and Place](roboflex_ros2/roboflex_pick_place)
+  - External camera perception + MoveIt scene integration for pick-place
 - [Firmware](roboflex_pio)
   - ESP32 PlatformIO firmware (UDP listener)
 
@@ -42,7 +44,7 @@ pipx install platformio
 source /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash
 cd ~/ros2_ws
 rosdep install --from-paths src --ignore-src -r -y
-colcon build --packages-select roboflex_description roboflex_control roboflex_moveit roboflex_bringup
+colcon build --packages-select roboflex_description roboflex_control roboflex_moveit roboflex_bringup roboflex_pick_place
 source install/setup.bash
 ```
 
@@ -83,4 +85,29 @@ ros2 launch roboflex_bringup hardware_gui.launch.py with_moveit:=false
 
 ```bash
 ros2 launch roboflex_bringup hardware_gui.launch.py firmware_ip:=10.54.47.26 firmware_port:=9999
+```
+
+## Pick and Place (External D455 + MoveIt)
+
+```bash
+ros2 launch roboflex_pick_place pick_place_operate.launch.py \
+  firmware_ip:=10.54.47.26 firmware_port:=9999 \
+  record_bag:=true bag_output_dir:=/home/<user>/bags bag_name:=pick_place_op_01
+```
+
+If RealSense is already running in another terminal:
+
+```bash
+ros2 launch roboflex_pick_place pick_place_operate.launch.py \
+  firmware_ip:=10.54.47.26 start_realsense:=false
+```
+
+Compress existing data folders:
+
+```bash
+cd /home/<user>/ros2_ws/data/arm_depth
+for d in */; do
+  d="${d%/}"
+  tar -I 'zstd -19 -T0' -cf "${d}.tar.zst" "$d"
+done
 ```

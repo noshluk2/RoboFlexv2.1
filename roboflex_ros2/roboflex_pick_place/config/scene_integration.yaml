@@ -1,0 +1,20 @@
+scene_integration_node:
+  ros__parameters:
+    pointcloud_topic: /camera/depth/color/points
+    base_frame: base_link
+
+    # Downsample and update frequency
+    sample_stride: 8
+    update_period_sec: 0.4
+    min_points_for_object: 120
+    box_padding_m: 0.015
+
+    # Workspace limits in base frame (meters)
+    workspace_min_x: 0.05
+    workspace_max_x: 0.45
+    workspace_min_y: -0.30
+    workspace_max_y: 0.30
+    workspace_min_z: -0.05
+    workspace_max_z: 0.40
+
+    object_id: camera_segmented_object
