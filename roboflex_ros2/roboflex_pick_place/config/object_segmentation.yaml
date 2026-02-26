@@ -1,0 +1,38 @@
+object_segmentation_node:
+  ros__parameters:
+    input_topic: /camera/depth/color/points
+    output_topic: /camera/depth/color/points_segmented
+    target_frame: base_link
+
+    # XYZ bounds in target_frame (meters)
+    min_x: -0.4
+    max_x: 0.4
+    min_y: -0.2
+    max_y: 0.2
+    min_z: -1.0
+    max_z: 1.0
+
+    # Keep only points above table (in target_frame)
+    filter_above_table: true
+    table_z: 0.0
+    table_clearance_m: 0.015
+
+    # Bounding boxes for segmented objects (RViz MarkerArray)
+    publish_bounding_boxes: true
+    bbox_topic: /segmented_objects/bounding_boxes
+
+    # Euclidean clustering for per-object boxes
+    cluster_tolerance_m: 0.025
+    min_cluster_points: 80
+    max_bounding_boxes: 6
+
+    # Object size limits (meters) to reject robot-arm-size clusters
+    min_object_size_x: 0.01
+    min_object_size_y: 0.01
+    min_object_size_z: 0.005
+    max_object_size_x: 0.18
+    max_object_size_y: 0.18
+    max_object_size_z: 0.05
+
+    publish_empty_cloud: true
+    log_interval_sec: 2.0

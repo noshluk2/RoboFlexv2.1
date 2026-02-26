@@ -2,6 +2,8 @@
 
 Pick-and-place package for RoboFlex with an external Intel RealSense D455 camera.
 
+![RoboFlex Pick and Place](../../resources/pnp.png)
+
 ## Scope
 
 - Keep camera off-robot and observe robot workspace from outside.
@@ -11,10 +13,13 @@ Pick-and-place package for RoboFlex with an external Intel RealSense D455 camera
 ## Included Now
 
 - `scene_integration_node`: reads `PointCloud2`, transforms points to `base_link`, filters workspace, and updates one collision box in MoveIt PlanningScene.
+- `object_segmentation_node`: subscribes to `PointCloud2`, applies ROI + above-table segmentation, and publishes segmented cloud + 3D bounding boxes.
+- `object_segmentation_replay.launch.py`: replays a rosbag and runs segmentation on recorded data.
 - `external_camera_scene.launch.py`: starts static camera TF and scene integration node.
 - `pick_place_hardware.launch.py`: starts real robot + MoveIt stack and scene integration together.
 - `pick_place_data_prep.launch.py`: one-command launch for testing scene integration and collecting rosbag data.
 - `pick_place_operate.launch.py`: one-command launch for hardware control + MoveIt RViz + RealSense + optional rosbag recording.
+- `config/RoboticArm_PNP.json`: Foxglove visualization layout/config for this package.
 - `task_list.md`: project task tracker with checkboxes.
 
 ## Launch
@@ -38,6 +43,40 @@ ros2 launch realsense2_camera rs_launch.py \
   camera_namespace:=/ camera_name:=camera \
   pointcloud.enable:=true align_depth.enable:=true
 ```
+
+Run simple table-top object segmentation (ROI crop + keep points above table):
+
+```bash
+ros2 run roboflex_pick_place object_segmentation_node --ros-args \
+  --params-file $(ros2 pkg prefix roboflex_pick_place)/share/roboflex_pick_place/config/object_segmentation.yaml
+```
+
+Tune these in `config/object_segmentation.yaml`:
+
+- ROI limits: `min_x/max_x`, `min_y/max_y`, `min_z/max_z`
+- Table filter: `table_z`, `table_clearance_m` (`filter_above_table:=true`)
+- Bounding-box topic: `bbox_topic` (`visualization_msgs/MarkerArray`)
+- Bounding-box size limits: `max_object_size_x/y/z` (rejects large clusters like robot arm)
+
+Run segmentation on recorded data (bag replay + segmentation node in one launch):
+
+```bash
+ros2 launch roboflex_pick_place object_segmentation_replay.launch.py \
+  bag_path:=/home/<user>/bags/pick_place_session_01 \
+  pointcloud_topic:=/camera/depth/color/points
+```
+
+If you want to replay bag separately and only run node from launch:
+
+```bash
+ros2 launch roboflex_pick_place object_segmentation_replay.launch.py \
+  start_bag_playback:=false
+```
+
+Foxglove visualization:
+
+- Open `roboflex_ros2/roboflex_pick_place/config/RoboticArm_PNP.json` as your layout/config file in Foxglove.
+- Add `/camera/depth/color/points_segmented` and `/segmented_objects/bounding_boxes` to visualize segmented objects and boxes.
 
 Test + prepare data in one launch (camera + MoveIt + scene integration, optional bag recording):
 

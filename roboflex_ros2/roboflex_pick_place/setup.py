@@ -18,7 +18,10 @@ setup(
         ),
         (os.path.join("share", package_name), ["package.xml", "README.md", "task_list.md"]),
         (os.path.join("share", package_name, "launch"), glob("launch/*.py")),
-        (os.path.join("share", package_name, "config"), glob("config/*.yaml")),
+        (
+            os.path.join("share", package_name, "config"),
+            glob("config/*.yaml") + glob("config/*.json"),
+        ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -30,6 +33,7 @@ setup(
     entry_points={
         "console_scripts": [
             "scene_integration_node = roboflex_pick_place.scene_integration_node:main",
+            "object_segmentation_node = roboflex_pick_place.object_segmentation_node:main",
         ],
     },
 )
